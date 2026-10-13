@@ -463,6 +463,8 @@ func ListenNetworkBlockDevices(vm *VirtualMachine) error {
 
 func AddToVirtualMachineConfig(vmConfig *VirtualMachineConfiguration, dev config.VirtioDevice) error {
 	switch d := dev.(type) {
+	case *config.USBPassthrough:
+		return (*USBPassthrough)(d).AddToVirtualMachineConfig(vmConfig)
 	case *config.USBMassStorage:
 		return (*USBMassStorage)(d).AddToVirtualMachineConfig(vmConfig)
 	case *config.VirtioBlk:

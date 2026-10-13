@@ -251,6 +251,66 @@ This adds a NVMe device to the VM which will be backed by the disk image at `/Us
 ```
 
 
+### USB Passthrough (macOS 27)
+
+This branch is experimental. Native compilation, matching filters and the AppKit
+lifecycle have been tested; first-time device grants and physical transfer still
+need validation with a provisioned app.
+
+USB passthrough currently supports console VMs only. Combining it with `--gui`
+is rejected before boot. The console VM still appears as a regular Dock app,
+which Accessory Access requires; choosing Quit requests graceful guest shutdown.
+
+`--device usb-passthrough` registers interest in physical USB accessories using
+Apple's Accessory Access framework. It adds a virtual XHCI controller. The user
+chooses which matching devices to grant to vfkit in the macOS accessory menu;
+the option does not seize devices automatically.
+
+Use `vendorId` and optionally `productId` to limit the devices offered for this
+VM. Values are decimal or `0x`-prefixed hexadecimal, from 0 through 65535.
+`productId` requires `vendorId`. Repeat `--device usb-passthrough,...` for multiple
+filters, or omit both fields to express interest in all supported accessories.
+
+```sh
+--device usb-passthrough,vendorId=0x1366,productId=0x0105
+```
+
+Build with the macOS 27 SDK and package the executable with the Claim USB
+Accessory entitlement:
+
+```sh
+make usb-app USB_SIGN_IDENTITY="Apple Development: Your Name (TEAMID)" \
+  USB_PROVISION_PROFILE=/path/to/vfkit.provisionprofile
+out/vfkit.app/Contents/MacOS/vfkit --bootloader linux,kernel=/path/to/kernel,initrd=/path/to/initrd,cmdline="console=hvc0" \
+  --device virtio-serial,stdio \
+  --device usb-passthrough,vendorId=0x1366,productId=0x0105
+```
+
+The USB entitlement is restricted: macOS kills ad-hoc-signed binaries that carry
+it. `make usb-app` requires both a development signing identity and a macOS
+provisioning profile authorizing Claim USB Accessory. In Xcode, configure a
+macOS app target with your development team and an explicit bundle identifier,
+then add **Claim USB Accessory** under **Signing & Capabilities**. Generate or
+download the matching development provisioning profile. The build derives its
+bundle identifier from that profile and embeds it in the app; profiles and
+signing keys stay outside the repository.
+
+If signing over SSH fails with `errSecInternalComponent`, unlock the login
+keychain on the Mac and approve the codesign key-access prompt. The ordinary
+`make build` entitlement file is unchanged. Framework registration errors are
+reported rather than silently falling back to another access method.
+
+After the VM starts, use the macOS accessory menu to attach or release the
+device. Hotplug events attach and detach devices while the VM runs. Registration
+also handles accessories already granted to the app. The guest needs the Linux
+USB driver for the device; mode switches may change the vendor/product IDs and
+require another matching filter and user approval. Exiting unregisters the
+listener and releases the session's devices.
+
+This requires macOS 27; it is independent of USB/IP and does not require a
+network USB server. See Apple's [Accessory Access documentation](https://developer.apple.com/documentation/accessoryaccess)
+and [USB passthrough configuration](https://developer.apple.com/documentation/virtualization/vzusbpassthroughdeviceconfiguration).
+
 ### USB Mass Storage
 
 #### Description

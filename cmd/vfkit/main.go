@@ -182,6 +182,10 @@ func runVFKit(vmConfig *config.VirtualMachine, opts *cmdline.Options) error {
 		gpuDevs[0].UsesGUI = true
 	}
 
+	if err := validateUSBApplication(vmConfig); err != nil {
+		return err
+	}
+
 	vfVM, err := vf.NewVirtualMachine(*vmConfig)
 	if err != nil {
 		return err
@@ -216,6 +220,9 @@ func runVFKit(vmConfig *config.VirtualMachine, opts *cmdline.Options) error {
 
 	}
 	util.SetupExitSignalHandling(shutdownFunc)
+	if needsUSBApplication(vmConfig) {
+		return runUSBApplication(func() error { return runVirtualMachine(vmConfig, vfVM) })
+	}
 	return runVirtualMachine(vmConfig, vfVM)
 }
 
@@ -237,6 +244,27 @@ func runVirtualMachine(vmConfig *config.VirtualMachine, vm *vf.VirtualMachine) e
 		return err
 	}
 	log.Infof("virtual machine is running")
+
+	usb, err := vm.ListenUSBPassthrough()
+	if err != nil {
+		if stopErr := vm.Stop(); stopErr != nil {
+			log.Warnf("failed to stop VM after USB registration error: %v", stopErr)
+		}
+		return fmt.Errorf("registering USB accessories: %w", err)
+	}
+	if usb != nil {
+		defer func() {
+			if err := usb.Close(); err != nil {
+				log.Warnf("releasing USB accessories: %v", err)
+			}
+		}()
+		go func() {
+			for err := range usb.Errors() {
+				log.Warnf("USB passthrough: %v", err)
+			}
+		}()
+		log.Info("USB accessory listener ready; grant devices to vfkit in the macOS accessory menu")
+	}
 
 	vsockDevs := vmConfig.VirtioVsockDevices()
 	for _, vsock := range vsockDevs {

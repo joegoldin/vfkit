@@ -41,3 +41,17 @@ force-build:
 .PHONY: lint
 lint: $(TOOLS_BINDIR)/golangci-lint
 	"$(TOOLS_BINDIR)"/golangci-lint run
+
+# A bundle gives Accessory Access a stable app identity for the approval menu.
+USB_SIGN_IDENTITY ?=
+USB_PROVISION_PROFILE ?=
+.PHONY: usb-app
+usb-app:
+	@test "$$(uname -s)" = Darwin || (echo "usb-app requires macOS" >&2; exit 1)
+	@test "$$(xcrun --sdk macosx --show-sdk-version | cut -d. -f1)" -ge 27 || (echo "usb-app requires the macOS 27 SDK" >&2; exit 1)
+	@test -n "$(USB_SIGN_IDENTITY)" -a "$(USB_SIGN_IDENTITY)" != "-" || (echo "usb-app requires USB_SIGN_IDENTITY (ad-hoc signing cannot use Accessory Access)" >&2; exit 1)
+	@test -f "$(USB_PROVISION_PROFILE)" || (echo "usb-app requires USB_PROVISION_PROFILE with the Claim USB Accessory capability" >&2; exit 1)
+	@mkdir -p out/vfkit.app/Contents/MacOS
+	cp contrib/usb/Info.plist out/vfkit.app/Contents/Info.plist
+	CGO_ENABLED=1 CGO_CFLAGS=$(CGO_CFLAGS) go build -ldflags "$(VERSION_LDFLAGS)" -o out/vfkit.app/Contents/MacOS/vfkit ./cmd/vfkit
+	sh contrib/usb/sign.sh out/vfkit.app "$(USB_SIGN_IDENTITY)" "$(USB_PROVISION_PROFILE)"

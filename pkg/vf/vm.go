@@ -91,6 +91,7 @@ type VirtualMachineConfiguration struct {
 	serialPortsConfiguration             []*vz.VirtioConsoleDeviceSerialPortConfiguration
 	socketDevicesConfiguration           []vz.SocketDeviceConfiguration
 	consolePortsConfiguration            []*vz.VirtioConsolePortConfiguration
+	usbPassthroughFilters                []vz.USBPassthroughFilter
 }
 
 func NewVirtualMachineConfiguration(vmConfig *config.VirtualMachine) (*VirtualMachineConfiguration, error) {
@@ -157,6 +158,14 @@ func (cfg *VirtualMachineConfiguration) toVz() (*vz.VirtualMachineConfiguration,
 		if err := vsockDev.AddToVirtualMachineConfig(cfg); err != nil {
 			return nil, err
 		}
+	}
+
+	if len(cfg.usbPassthroughFilters) > 0 {
+		controller, err := vz.NewXHCIControllerConfiguration()
+		if err != nil {
+			return nil, err
+		}
+		cfg.SetUSBControllersVirtualMachineConfiguration([]vz.USBControllerConfiguration{controller})
 	}
 
 	cfg.SetStorageDevicesVirtualMachineConfiguration(cfg.storageDevicesConfiguration)

@@ -75,3 +75,5 @@ require (
 	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
 )
+
+replace github.com/Code-Hex/vz/v3 => github.com/joegoldin/vz/v3 v3.7.2-0.20261013201015-3e1b7249a3f3

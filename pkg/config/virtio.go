@@ -201,6 +201,8 @@ func deviceFromCmdLine(deviceOpts string) (VirtioDevice, error) {
 		dev = &VirtioSerial{}
 	case "virtio-vsock":
 		dev = &VirtioVsock{}
+	case "usb-passthrough":
+		dev = &USBPassthrough{}
 	case "usb-mass-storage":
 		dev = usbMassStorageNewEmpty()
 	case "virtio-input":

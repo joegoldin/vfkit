@@ -25,7 +25,10 @@ extern void usbApplicationReady(uintptr_t context);
 
 bool prepareUSBApplication(void)
 {
-    return [[NSApplication sharedApplication] setActivationPolicy:NSApplicationActivationPolicyRegular];
+    NSApplication *app = [NSApplication sharedApplication];
+    [app setActivationPolicy:NSApplicationActivationPolicyRegular];
+    // Setting an already active policy returns NO. Check the resulting state.
+    return app.activationPolicy == NSApplicationActivationPolicyRegular;
 }
 
 void runUSBApplication(uintptr_t context)

@@ -253,9 +253,9 @@ This adds a NVMe device to the VM which will be backed by the disk image at `/Us
 
 ### USB Passthrough (macOS 27)
 
-This branch is experimental. Native compilation, matching filters and the AppKit
-lifecycle have been tested; first-time device grants and physical transfer still
-need validation with a provisioned app.
+This branch is experimental. Native compilation, matching filters, the AppKit
+lifecycle, and a user-granted accessory callback have been tested with a
+provisioned app. Successful physical transfer still needs validation.
 
 USB passthrough currently supports console VMs only. Combining it with `--gui`
 is rejected before boot. The console VM still appears as a regular Dock app,
@@ -306,6 +306,11 @@ also handles accessories already granted to the app. The guest needs the Linux
 USB driver for the device; mode switches may change the vendor/product IDs and
 require another matching filter and user approval. Exiting unregisters the
 listener and releases the session's devices.
+
+Apple's Virtualization framework rejects devices with isochronous endpoints.
+An iPhone tested on macOS 27.0.1 reached the accessory callback but failed device
+creation with that error; it did not appear in the guest. A menu grant alone
+does not prove that a device can be passed through.
 
 This requires macOS 27; it is independent of USB/IP and does not require a
 network USB server. See Apple's [Accessory Access documentation](https://developer.apple.com/documentation/accessoryaccess)

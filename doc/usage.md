@@ -253,9 +253,11 @@ This adds a NVMe device to the VM which will be backed by the disk image at `/Us
 
 ### USB Passthrough (macOS 27)
 
-This branch is experimental. Native compilation, matching filters, the AppKit
-lifecycle, and a user-granted accessory callback have been tested with a
-provisioned app. Successful physical transfer still needs validation.
+This branch is experimental. On macOS 27.0.1, a provisioned app passed an
+Espressif USB JTAG/serial device (`303a:1001`) into a Linux guest, where it
+enumerated as `/dev/ttyACM0`. Stopping the VM released the device back to the
+host. Serial communication and firmware flashing have not been tested. Native
+compilation, matching filters, and the AppKit lifecycle also passed their checks.
 
 USB passthrough currently supports console VMs only. Combining it with `--gui`
 is rejected before boot. The console VM still appears as a regular Dock app,
@@ -281,10 +283,23 @@ Accessory entitlement:
 ```sh
 make usb-app USB_SIGN_IDENTITY="Apple Development: Your Name (TEAMID)" \
   USB_PROVISION_PROFILE=/path/to/vfkit.provisionprofile
-out/vfkit.app/Contents/MacOS/vfkit --bootloader linux,kernel=/path/to/kernel,initrd=/path/to/initrd,cmdline="console=hvc0" \
+```
+
+Launch the signed app through LaunchServices so macOS shows its USB accessory
+menu. From an interactive fish terminal, preserve the guest console with:
+
+```fish
+set console (tty)
+open -n -W --stdin "$console" --stdout "$console" --stderr "$console" \
+  -a "$PWD/out/vfkit.app" --args \
+  --bootloader linux,kernel=/path/to/kernel,initrd=/path/to/initrd,cmdline="console=hvc0" \
   --device virtio-serial,stdio \
   --device usb-passthrough,vendorId=0x1366,productId=0x0105
 ```
+
+`open -W` waits for the app to exit, but does not relay its exit status. Direct
+execution of the binary from an SSH shell did not consistently show the
+accessory menu in testing.
 
 The USB entitlement is restricted: macOS kills ad-hoc-signed binaries that carry
 it. `make usb-app` requires both a development signing identity and a macOS
